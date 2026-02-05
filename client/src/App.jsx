@@ -1,0 +1,74 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AdminDashboard from './pages/Dashboard/AdminDashboard';
+import ReviewerDashboard from './pages/Dashboard/ReviewerDashboard';
+import AuthorDashboard from './pages/Dashboard/AuthorDashboard';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import PublicSubmission from './pages/PublicSubmission';
+
+// Protected Route Component
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { user, token } = useAuth();
+  if (!token) return <Navigate to="/login" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  return children;
+};
+
+const Unauthorized = () => <div className="p-10 text-red-500">Unauthorized Access</div>;
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-background font-sans antialiased text-foreground">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+
+            {/* Admin Routes */}
+            <Route 
+              path="/admin/*" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Reviewer Routes */}
+            <Route 
+              path="/reviewer/*" 
+              element={
+                <ProtectedRoute allowedRoles={['reviewer']}>
+                  <ReviewerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Author Routes */}
+            <Route 
+              path="/author/*" 
+              element={
+                 <ProtectedRoute allowedRoles={['author']}>
+                    <AuthorDashboard />
+                 </ProtectedRoute>
+              } 
+            />
+
+            <Route path="/submit-paper" element={<PublicSubmission />} />
+            
+            {/* Default Route */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
