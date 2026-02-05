@@ -2,9 +2,9 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-exports.register = async (req, res) => {
+exports.registerReviewer = async (req, res) => {
   try {
-    const { name, email, password, role, qualifications } = req.body;
+    const { name, email, password, qualifications } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -14,25 +14,18 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const validRoles = ['author', 'reviewer', 'publisher'];
-    const userRole = validRoles.includes(role) ? role : 'author';
-
     const newUser = new User({
       name,
       email,
       password: hashedPassword,
-      role: userRole,
-      qualifications: userRole === 'reviewer' ? qualifications : '',
-      reviewerStatus: userRole === 'reviewer' ? 'PENDING' : 'APPROVED' // Publishers/Authors auto-approve
+      role: 'reviewer',
+      qualifications,
+      reviewerStatus: 'PENDING'
     });
 
     await newUser.save();
 
-    res.status(201).json({ 
-        message: userRole === 'reviewer' 
-            ? 'Registration successful. Account pending approval.' 
-            : 'Registration successful. Please login.' 
-    });
+    res.status(201).json({ message: 'Reviewer registration successful. Account pending approval.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

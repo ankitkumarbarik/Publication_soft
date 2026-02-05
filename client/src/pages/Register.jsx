@@ -11,7 +11,6 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    role: 'author',
     qualifications: ''
   });
   const [error, setError] = useState('');
@@ -23,17 +22,14 @@ const Register = () => {
       setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
-  const handleRoleChange = (e) => {
-      setFormData({ ...formData, role: e.target.value });
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register`, formData);
-      setSuccess(res.data.message);
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register-reviewer`, formData);
+      setSuccess('Registration successful! Please wait for admin approval.');
+      // setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -42,83 +38,48 @@ const Register = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-50 p-4">
-      <Card className="w-full max-w-md shadow-2xl border-slate-200">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Create an Account</CardTitle>
-          <CardDescription className="text-center">
-            Join our research community today.
-          </CardDescription>
+    <div className="flex items-center justify-center min-h-screen bg-slate-50">
+      <Card className="w-[400px] shadow-lg">
+        <CardHeader>
+          <CardTitle>Reviewer Registration</CardTitle>
+          <CardDescription>Join our panel of experts.</CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
-              <div className="text-center space-y-6 py-6">
-                  <div className="h-12 w-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-lg font-medium text-slate-900">Registration Successful</p>
-                    <p className="text-slate-500">{success}</p>
-                  </div>
-                  <Button className="w-full" onClick={() => navigate('/login')}>Proceed to Login</Button>
+              <div className="text-green-600 text-center space-y-4">
+                  <p>{success}</p>
+                  <Button variant="outline" onClick={() => navigate('/login')}>Go to Login</Button>
               </div>
           ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="role">I am a...</Label>
-              <div className="relative">
-                <select 
-                    id="role" 
-                    value={formData.role} 
-                    onChange={handleRoleChange} 
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
-                    required
-                >
-                    <option value="author">Author</option>
-                    <option value="reviewer">Reviewer</option>
-                    <option value="publisher">Publisher</option>
-                </select>
-                <div className="absolute right-3 top-3 pointer-events-none opacity-50">
-                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
+          <form onSubmit={handleSubmit}>
+            <div className="grid w-full items-center gap-4">
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="name">Full Name</Label>
+                <Input id="name" value={formData.name} onChange={handleChange} required />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={formData.email} onChange={handleChange} required />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="qualifications">Qualifications</Label>
+                <Input id="qualifications" placeholder="PhD, MSc, areas of expertise..." value={formData.qualifications} onChange={handleChange} required />
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" value={formData.password} onChange={handleChange} required />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" value={formData.name} onChange={handleChange} required placeholder="John Doe" />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={formData.email} onChange={handleChange} required placeholder="john@example.com" />
-            </div>
-
-            {formData.role === 'reviewer' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <Label htmlFor="qualifications">Qualifications</Label>
-                  <Input id="qualifications" placeholder="e.g. PhD Computer Science" value={formData.qualifications} onChange={handleChange} required />
-                </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={formData.password} onChange={handleChange} required placeholder="••••••••" />
-            </div>
-
-            {error && <div className="text-sm text-red-500 bg-red-50 p-2 rounded border border-red-100">{error}</div>}
-            
-            <Button className="w-full font-semibold" type="submit" disabled={loading}>
-                {loading ? 'Creating Account...' : 'Register'}
+            {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+            <Button className="w-full mt-4" type="submit" disabled={loading}>
+                {loading ? 'Registering...' : 'Register'}
             </Button>
           </form>
           )}
         </CardContent>
         {!success && (
-        <CardFooter className="justify-center border-t p-6 bg-slate-50/50">
-             <div className="text-sm text-slate-600">
-                Already have an account? <Link to="/login" className="font-medium text-primary hover:underline">Login here</Link>
-             </div>
+        <CardFooter className="justify-center">
+             <Link to="/login" className="text-sm underline text-blue-600">Already have an account?</Link>
         </CardFooter>
         )}
       </Card>
