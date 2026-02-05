@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import axiosInstance from '../api/axiosInstance';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -27,7 +27,7 @@ const Register = () => {
     setError('');
     setLoading(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/register-reviewer`, formData);
+      await axiosInstance.post('/api/auth/register-reviewer', formData);
       setSuccess('Registration successful! Please wait for admin approval.');
       // setTimeout(() => navigate('/login'), 2000);
     } catch (err) {

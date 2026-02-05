@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -35,7 +35,7 @@ const AuthorDashboard = () => {
             // I'll add that to backend later. For now, I'll implement the frontend and fix backend next.
             // Or I can filter on frontend if I had access, but I don't.
             // I'll call `/api/papers/my-papers` and implement it in backend in next step.
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/my-papers`);
+            const res = await axiosInstance.get('/api/papers/my-papers');
             setPapers(res.data);
         } catch (error) {
             console.error("Error fetching papers", error);
@@ -63,7 +63,7 @@ const AuthorDashboard = () => {
         setMessage('');
 
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/submit`, formData, {
+            await axiosInstance.post('/api/papers/submit', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setMessage('Paper submitted successfully!');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../components/ui/card';
@@ -16,7 +16,7 @@ const ReviewerDashboard = () => {
 
     const fetchAssignedPapers = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/assigned`);
+            const res = await axiosInstance.get('/api/papers/assigned');
             setPapers(res.data);
         } catch (error) {
             console.error(error);
@@ -29,7 +29,7 @@ const ReviewerDashboard = () => {
 
     const submitReview = async (paperId) => {
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/review`, {
+            await axiosInstance.post('/api/papers/review', {
                 paperId,
                 remark,
                 recommendation

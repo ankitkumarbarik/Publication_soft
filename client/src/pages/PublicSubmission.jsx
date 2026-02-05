@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import axiosInstance from '../api/axiosInstance';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -39,7 +39,7 @@ const PublicSubmission = () => {
         setMessage('');
 
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/submit`, formData, {
+            await axiosInstance.post('/api/papers/submit', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setSuccess(true);

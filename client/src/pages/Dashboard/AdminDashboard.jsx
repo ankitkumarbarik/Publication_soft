@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../components/ui/card';
@@ -16,9 +16,9 @@ const AdminDashboard = () => {
 
     const fetchReviewers = async () => {
         try {
-            const pendingRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/users/pending-reviewers`);
+            const pendingRes = await axiosInstance.get('/api/users/pending-reviewers');
             setPendingReviewers(pendingRes.data);
-            const allRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/users/reviewers`);
+            const allRes = await axiosInstance.get('/api/users/reviewers');
             setReviewers(allRes.data);
         } catch (error) {
             console.error(error);
@@ -27,7 +27,7 @@ const AdminDashboard = () => {
 
     const fetchPapers = async () => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/all`);
+            const res = await axiosInstance.get('/api/papers/all');
             setPapers(res.data);
         } catch (error) {
             console.error(error);
@@ -41,7 +41,7 @@ const AdminDashboard = () => {
 
     const handleReviewerStatus = async (userId, status) => {
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/users/reviewer-status`, { userId, status });
+            await axiosInstance.post('/api/users/reviewer-status', { userId, status });
             setRefresh(p => p + 1);
         } catch (error) {
             alert(error.response?.data?.message || 'Action failed');
@@ -51,7 +51,7 @@ const AdminDashboard = () => {
     const handleAssign = async (paperId, reviewerId) => {
         if (!reviewerId) return;
         try {
-             await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/assign`, { paperId, reviewerId });
+             await axiosInstance.post('/api/papers/assign', { paperId, reviewerId });
              setRefresh(p => p + 1);
              alert('Reviewer assigned');
         } catch (error) {
@@ -61,7 +61,7 @@ const AdminDashboard = () => {
 
     const handleDecision = async (paperId, decision) => {
         try {
-             await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/decision`, { paperId, decision });
+             await axiosInstance.post('/api/papers/decision', { paperId, decision });
              setRefresh(p => p + 1);
         } catch (error) {
             alert(error.response?.data?.message || 'Decision failed');
