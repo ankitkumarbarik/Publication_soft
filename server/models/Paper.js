@@ -15,11 +15,30 @@ const paperSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  reviewerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
+  reviewers: [{
+    reviewerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    status: {
+      type: String,
+      enum: ['ASSIGNED', 'REVIEWED'],
+      default: 'ASSIGNED'
+    },
+    remark: {
+      type: String,
+      default: ''
+    },
+    recommendation: {
+      type: String,
+      enum: ['APPROVE', 'REJECT', ''],
+      default: ''
+    },
+    assignedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   cloudinaryUrl: {
     type: String,
     required: true
@@ -32,15 +51,6 @@ const paperSchema = new mongoose.Schema({
     type: String,
     enum: ['SUBMITTED', 'UNDER_REVIEW', 'PUBLISHED', 'REJECTED'],
     default: 'SUBMITTED'
-  },
-  reviewRemark: {
-    type: String,
-    default: ''
-  },
-  reviewRecommendation: {
-    type: String,
-    enum: ['APPROVE', 'REJECT', ''],
-    default: ''
   },
   submittedAt: {
     type: Date,

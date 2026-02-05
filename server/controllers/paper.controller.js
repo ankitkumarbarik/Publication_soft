@@ -30,42 +30,76 @@ const findOrCreateAuthor = async (name, email) => {
 
 exports.submitPaper = async (req, res) => {
   try {
+    console.log('--- Submit Paper Request ---');
+    console.log('Body:', req.body);
+    console.log('File:', req.file ? req.file.filename : 'No file');
+
     const { title, abstract, name, email } = req.body;
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
     }
 
     // 1. Upload to Cloudinary
+    console.log('Uploading to Cloudinary...');
     const result = await cloudinary.uploader.upload(req.file.path, {
         resource_type: 'auto',
         folder: 'research_papers'
     });
+    console.log('Cloudinary Upload Success:', result.secure_url);
 
     // Cleanup local file
     fs.unlinkSync(req.file.path);
 
     // 2. Handle Author (Auto-create or Link)
-    // If logged in (req.user exists), use that. Else use name/email from form.
     let authorId;
     if (req.user) {
+        console.log('User logged in, using existing ID:', req.user.id);
         authorId = req.user.id;
     } else {
+        console.log('No logged-in user, checking for existing author...');
         if (!name || !email) return res.status(400).json({ message: 'Author details required' });
-        const { user, password, isNew } = await findOrCreateAuthor(name, email);
-        authorId = user._id;
+        
+        try {
+            const { user, password, isNew } = await findOrCreateAuthor(name, email);
+            authorId = user._id;
+            console.log('Author ID resolved:', authorId, 'Is New:', isNew);
 
-        if (isNew) {
-            // Send email with credentials
-            await sendEmail(
-                email,
-                'Your Research Account Created',
-                `Welcome! parsed... Password: ${password}`,
-                `<p>Your account has been created. Password: <strong>${password}</strong></p>`
-            );
+            if (isNew) {
+                console.log('Sending email to new user...');
+                try {
+                    await sendEmail(
+                        email,
+                        'Your Research Account Created',
+                        `Welcome! Your password is provided below.`,
+                        `<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                            <h2 style="color: #2563eb;">Welcome to Research Portal</h2>
+                            <p>Your paper <strong>"${title}"</strong> has been successfully submitted.</p>
+                            <p>An account has been created for you to track your submission status.</p>
+                            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                <p style="margin: 0;"><strong>Email:</strong> ${email}</p>
+                                <p style="margin: 10px 0 0;"><strong>Password:</strong> <span style="font-family: monospace; font-size: 1.2em; background: #fff; padding: 2px 6px; border-radius: 4px;">${password}</span></p>
+                            </div>
+                            <p>Please login to change your password and view your dashboard.</p>
+                            <a href="${process.env.CLIENT_URL}/login" style="display: inline-block; background: #2563eb; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Login Now</a>
+                        </div>`
+                    );
+                    console.log('Welcome email sent successfully.');
+                } catch (emailError) {
+                    console.error('Failed to send welcome email:', emailError);
+                    // Don't fail the whole request if email fails, but log it
+                }
+            } else {
+                console.log('User already exists, skipping account creation email.');
+                // Optionally send a "Submission Received" email even for existing users
+            }
+        } catch (authError) {
+            console.error('Error in findOrCreateAuthor:', authError);
+            return res.status(500).json({ message: 'Failed to create/link author account' });
         }
     }
 
     // 3. Create Paper
+    console.log('Creating paper record...');
     const newPaper = new Paper({
         title,
         abstract,
@@ -76,9 +110,12 @@ exports.submitPaper = async (req, res) => {
     });
 
     await newPaper.save();
+    console.log('Paper saved successfully:', newPaper._id);
+    
     res.status(201).json({ message: 'Paper submitted successfully', paper: newPaper });
 
   } catch (error) {
+    console.error('Submit Paper Error:', error);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
@@ -86,7 +123,7 @@ exports.submitPaper = async (req, res) => {
 
 exports.getAllPapers = async (req, res) => {
     try {
-        const papers = await Paper.find().populate('authorId', 'name email').populate('reviewerId', 'name');
+        const papers = await Paper.find().populate('authorId', 'name email').populate('reviewers.reviewerId', 'name email');
         res.json(papers);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -95,7 +132,12 @@ exports.getAllPapers = async (req, res) => {
 
 exports.getAssignedPapers = async (req, res) => {
     try {
-        const papers = await Paper.find({ reviewerId: req.user.id });
+        const papers = await Paper.find({ 'reviewers.reviewerId': req.user.id })
+            .populate('authorId', 'name')
+            .populate('reviewers.reviewerId', 'name'); // useful to see others? maybe strict view later
+        
+        // Filter or just send all? The frontend needs to find *their* specific status.
+        // Let's send the paper object, frontend will find their entry in reviewers array.
         res.json(papers);
     } catch (error) {
          res.status(500).json({ error: error.message });
@@ -108,7 +150,17 @@ exports.assignReviewer = async (req, res) => {
         const paper = await Paper.findById(paperId);
         if (!paper) return res.status(404).json({ message: 'Paper not found' });
 
-        paper.reviewerId = reviewerId;
+        // Check if already assigned
+        const exists = paper.reviewers.some(r => r.reviewerId.toString() === reviewerId);
+        if (exists) {
+            return res.status(400).json({ message: 'Reviewer already assigned' });
+        }
+
+        paper.reviewers.push({
+            reviewerId,
+            status: 'ASSIGNED'
+        });
+        
         paper.status = 'UNDER_REVIEW';
         await paper.save();
         
@@ -127,17 +179,17 @@ exports.assignReviewer = async (req, res) => {
 exports.submitReview = async (req, res) => {
     try {
         const { paperId, remark, recommendation } = req.body;
-        const paper = await Paper.findOne({ _id: paperId, reviewerId: req.user.id });
+        const paper = await Paper.findOne({ _id: paperId, 'reviewers.reviewerId': req.user.id });
         
         if (!paper) return res.status(404).json({ message: 'Paper not found or not assigned to you' });
 
-        paper.reviewRemark = remark;
-        paper.reviewRecommendation = recommendation;
-        // Status remains UNDER_REVIEW until Admin decides? Or Reviewer can say 'Reviewed'?
-        // Requirement says: "Reviewer submits Remark + Recommendation".
-        // Admin makes final decision.
-        // Maybe update status to something else? Or keep UNDER_REVIEW. 
-        // Let's keep distinct status if needed, but requirements imply Admin views feedback.
+        // Find specific reviewer entry
+        const reviewEntry = paper.reviewers.find(r => r.reviewerId.toString() === req.user.id);
+        if (reviewEntry) {
+            reviewEntry.remark = remark;
+            reviewEntry.recommendation = recommendation;
+            reviewEntry.status = 'REVIEWED';
+        }
         
         await paper.save();
         res.json({ message: 'Review submitted' });
@@ -176,6 +228,30 @@ exports.finalDecision = async (req, res) => {
         await sendEmail(author.email, `Paper ${decision}ED`, `Your paper ${paper.title} has been ${decision}ED.`, `<p>Your paper has been ${decision}ED.</p>`);
 
         res.json({ message: 'Decision recorded' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.removeReviewer = async (req, res) => {
+    try {
+        const { paperId, reviewerId } = req.body;
+        const paper = await Paper.findById(paperId);
+        if (!paper) return res.status(404).json({ message: 'Paper not found' });
+
+        // Remove from array
+        paper.reviewers = paper.reviewers.filter(r => r.reviewerId.toString() !== reviewerId);
+        
+        // If no reviewers left, maybe revert status? 
+        // Let's keep it simple. If valid reviewer removed, they are gone.
+        // If all reviewers gone, status might ideally go back to SUBMITTED but 'assign' sets it to UNDER_REVIEW.
+        // Let's check length.
+        if (paper.reviewers.length === 0 && paper.status === 'UNDER_REVIEW') {
+            paper.status = 'SUBMITTED';
+        }
+
+        await paper.save();
+        res.json({ message: 'Reviewer removed' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

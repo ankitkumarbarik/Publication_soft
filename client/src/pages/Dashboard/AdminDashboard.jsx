@@ -13,6 +13,10 @@ const AdminDashboard = () => {
     const [pendingReviewers, setPendingReviewers] = useState([]);
     const [papers, setPapers] = useState([]);
     const [refresh, setRefresh] = useState(0);
+    const [processingPaperId, setProcessingPaperId] = useState(null);
+    const [processingReviewerId, setProcessingReviewerId] = useState(null);
+    const [selectedReviewers, setSelectedReviewers] = useState({}); // Map paperId -> reviewerId
+    const [confirmation, setConfirmation] = useState({ open: false, paperId: null, reviewerId: null });
 
     const fetchReviewers = async () => {
         try {
@@ -41,30 +45,60 @@ const AdminDashboard = () => {
 
     const handleReviewerStatus = async (userId, status) => {
         try {
+            setProcessingReviewerId(userId);
             await axiosInstance.post('/api/users/reviewer-status', { userId, status });
             setRefresh(p => p + 1);
         } catch (error) {
             alert(error.response?.data?.message || 'Action failed');
+        } finally {
+            setProcessingReviewerId(null);
         }
     };
 
-    const handleAssign = async (paperId, reviewerId) => {
+    const handleAssign = async (paperId) => {
+        const reviewerId = selectedReviewers[paperId];
         if (!reviewerId) return;
         try {
+             setProcessingPaperId(paperId);
              await axiosInstance.post('/api/papers/assign', { paperId, reviewerId });
              setRefresh(p => p + 1);
-             alert('Reviewer assigned');
+             setSelectedReviewers(prev => ({ ...prev, [paperId]: undefined })); // Reset selection
         } catch (error) {
             alert(error.response?.data?.message || 'Assignment failed');
+        } finally {
+            setProcessingPaperId(null);
+        }
+    };
+
+    const handleRemoveReviewer = (paperId, reviewerId) => {
+        setConfirmation({ open: true, paperId, reviewerId });
+    };
+
+    const confirmRemove = async () => {
+        const { paperId, reviewerId } = confirmation;
+        if (!paperId || !reviewerId) return;
+        
+        try {
+            setProcessingPaperId(paperId);
+            await axiosInstance.post('/api/papers/remove-reviewer', { paperId, reviewerId });
+            setRefresh(p => p + 1);
+            setConfirmation({ open: false, paperId: null, reviewerId: null });
+        } catch (error) {
+            alert(error.response?.data?.message || 'Removal failed');
+        } finally {
+            setProcessingPaperId(null);
         }
     };
 
     const handleDecision = async (paperId, decision) => {
         try {
+             setProcessingPaperId(paperId);
              await axiosInstance.post('/api/papers/decision', { paperId, decision });
              setRefresh(p => p + 1);
         } catch (error) {
             alert(error.response?.data?.message || 'Decision failed');
+        } finally {
+            setProcessingPaperId(null);
         }
     };
 
@@ -100,8 +134,23 @@ const AdminDashboard = () => {
                                             <p className="text-sm text-gray-600">{r.qualifications}</p>
                                         </CardContent>
                                         <CardFooter className="flex gap-2">
-                                            <Button size="sm" onClick={() => handleReviewerStatus(r._id, 'APPROVED')} className="w-full bg-green-600 hover:bg-green-700">Approve</Button>
-                                            <Button size="sm" variant="destructive" onClick={() => handleReviewerStatus(r._id, 'REJECTED')} className="w-full">Reject</Button>
+                                            <Button 
+                                                size="sm" 
+                                                onClick={() => handleReviewerStatus(r._id, 'APPROVED')} 
+                                                className="w-full bg-green-600 hover:bg-green-700"
+                                                disabled={processingReviewerId === r._id}
+                                            >
+                                                {processingReviewerId === r._id ? 'Processing...' : 'Approve'}
+                                            </Button>
+                                            <Button 
+                                                size="sm" 
+                                                variant="destructive" 
+                                                onClick={() => handleReviewerStatus(r._id, 'REJECTED')} 
+                                                className="w-full"
+                                                disabled={processingReviewerId === r._id}
+                                            >
+                                                {processingReviewerId === r._id ? 'Processing...' : 'Reject'}
+                                            </Button>
                                         </CardFooter>
                                     </Card>
                                 ))}
@@ -150,43 +199,98 @@ const AdminDashboard = () => {
                                     <p className="text-sm text-gray-600 mb-4">{paper.abstract}</p>
                                     
                                     {/* Reviewer Section */}
-                                    <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-md border">
-                                        <span className="text-sm font-medium">Reviewer:</span>
-                                        {paper.reviewerId ? (
-                                            <div className="flex-1 text-sm">
-                                                {paper.reviewerId.name}
-                                                {paper.status === 'UNDER_REVIEW' && paper.reviewRecommendation && (
-                                                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-                                                        Rec: {paper.reviewRecommendation}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <select 
-                                                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                onChange={(e) => handleAssign(paper._id, e.target.value)}
-                                                defaultValue=""
-                                            >
-                                                <option value="" disabled>Assign Reviewer...</option>
-                                                {reviewers.map(r => (
-                                                    <option key={r._id} value={r._id}>{r.name}</option>
+                                    <div className="flex flex-col gap-3 bg-slate-50 p-3 rounded-md border text-sm">
+                                        <div className="font-medium text-slate-900">Reviewers:</div>
+                                        
+                                        {/* List Assigned Reviewers */}
+                                        {paper.reviewers && paper.reviewers.length > 0 ? (
+                                            <ul className="space-y-2 mb-2">
+                                                {paper.reviewers.map((rev, idx) => (
+                                                    <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{rev.reviewerId?.name || 'Unknown'}</span>
+                                                            {rev.status === 'REVIEWED' && rev.recommendation && (
+                                                                <span className={`text-xs px-2 py-0.5 rounded w-fit ${rev.recommendation === 'APPROVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                                    {rev.recommendation}
+                                                                </span>
+                                                            )}
+                                                            {rev.status === 'ASSIGNED' && (
+                                                                <span className="text-xs text-gray-500 italic">Pending Review</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {rev.remark && (
+                                                                <div className="text-xs text-gray-600 border-l pl-2 max-w-[150px] truncate" title={rev.remark}>
+                                                                    {rev.remark}
+                                                                </div>
+                                                            )}
+                                                            {paper.status !== 'PUBLISHED' && paper.status !== 'REJECTED' && (
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                    title="Remove Reviewer"
+                                                                    onClick={() => handleRemoveReviewer(paper._id, rev.reviewerId?._id || rev.reviewerId)}
+                                                                >
+                                                                    &times;
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </li>
                                                 ))}
-                                            </select>
+                                            </ul>
+                                        ) : (
+                                            <p className="text-gray-500 italic text-xs mb-2">No reviewers assigned.</p>
+                                        )}
+
+                                        {/* Assign New Reviewer */}
+                                        {paper.status !== 'PUBLISHED' && paper.status !== 'REJECTED' && (
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <select 
+                                                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
+                                                    onChange={(e) => setSelectedReviewers(prev => ({ ...prev, [paper._id]: e.target.value }))}
+                                                    value={selectedReviewers[paper._id] || ''}
+                                                >
+                                                    <option value="" disabled>Add Reviewer...</option>
+                                                    {reviewers
+                                                        // Filter out already assigned reviewers
+                                                        .filter(r => !paper.reviewers?.some(pr => pr.reviewerId?._id === r._id || pr.reviewerId === r._id))
+                                                        .map(r => (
+                                                            <option key={r._id} value={r._id}>{r.name}</option>
+                                                    ))}
+                                                </select>
+                                                <Button 
+                                                    size="sm" 
+                                                    onClick={() => handleAssign(paper._id)}
+                                                    disabled={!selectedReviewers[paper._id] || processingPaperId === paper._id}
+                                                    className="h-9 whitespace-nowrap"
+                                                >
+                                                    {processingPaperId === paper._id ? 'Adding...' : 'Add Reviewer'}
+                                                </Button>
+                                            </div>
                                         )}
                                     </div>
-
-                                    {/* Feedback Display */}
-                                    {paper.reviewRemark && (
-                                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-100 rounded text-sm">
-                                            <strong>Reviewer Remark:</strong> {paper.reviewRemark}
-                                        </div>
-                                    )}
                                 </CardContent>
                                 <CardFooter className="bg-gray-50/50 flex justify-end gap-2">
                                     {paper.status !== 'PUBLISHED' && paper.status !== 'REJECTED' && (
                                         <>
-                                            <Button variant="destructive" onClick={() => handleDecision(paper._id, 'REJECT')}>Reject Paper</Button>
-                                            <Button onClick={() => handleDecision(paper._id, 'PUBLISH')} className="bg-green-600 hover:bg-green-700">Publish Paper</Button>
+                                            <Button 
+                                                variant="destructive" 
+                                                onClick={() => handleDecision(paper._id, 'REJECT')}
+                                                disabled={processingPaperId === paper._id}
+                                            >
+                                                {processingPaperId === paper._id ? 'Processing...' : 'Reject Paper'}
+                                            </Button>
+                                            <Button 
+                                                onClick={() => handleDecision(paper._id, 'PUBLISH')} 
+                                                className="bg-green-600 hover:bg-green-700 items-center gap-2"
+                                                disabled={processingPaperId === paper._id}
+                                            >
+                                                {processingPaperId === paper._id && (
+                                                    <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"/>
+                                                )}
+                                                {processingPaperId === paper._id ? 'Publishing...' : 'Publish Paper'}
+                                            </Button>
                                         </>
                                     )}
                                 </CardFooter>
@@ -195,6 +299,21 @@ const AdminDashboard = () => {
                     </div>
                 )}
             </main>
+
+            <Dialog open={confirmation.open} onOpenChange={(open) => !open && setConfirmation(prev => ({ ...prev, open: false }))}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Removal</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 text-slate-700">
+                        Are you sure you want to remove this reviewer? This action cannot be undone immediately if they have already submitted a review.
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setConfirmation({ open: false, paperId: null, reviewerId: null })}>Cancel</Button>
+                        <Button variant="destructive" onClick={confirmRemove}>Remove</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

@@ -37,6 +37,7 @@ router.get('/my-papers', verifyToken, verifyRole(['author']), paperController.ge
 // Admin Routes
 router.get('/all', verifyToken, verifyRole(['admin']), paperController.getAllPapers);
 router.post('/assign', verifyToken, verifyRole(['admin']), paperController.assignReviewer);
+router.post('/remove-reviewer', verifyToken, verifyRole(['admin']), paperController.removeReviewer);
 router.post('/decision', verifyToken, verifyRole(['admin']), paperController.finalDecision);
 
 // Reviewer Routes
