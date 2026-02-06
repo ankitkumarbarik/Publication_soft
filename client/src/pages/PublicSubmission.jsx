@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../components/ui/card';
@@ -17,6 +18,7 @@ import { UploadCloud, FileText, User, Mail, CheckCircle, AlertCircle } from 'luc
 
 const PublicSubmission = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [title, setTitle] = useState('');
     const [abstract, setAbstract] = useState('');
     const [name, setName] = useState('');
@@ -25,6 +27,13 @@ const PublicSubmission = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(''); // For error messages
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setName(user.name);
+            setEmail(user.email);
+        }
+    }, [user]);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -40,6 +49,7 @@ const PublicSubmission = () => {
         const formData = new FormData();
         formData.append('title', title);
         formData.append('abstract', abstract);
+        // If logged in, backend uses ID, but we send these anyway as fallback/validation
         formData.append('name', name);
         formData.append('email', email);
         formData.append('file', file);
@@ -59,6 +69,16 @@ const PublicSubmission = () => {
         }
     };
 
+    const handleSuccessClose = () => {
+        if (user) {
+            // Redirect based on role if needed, or just to their dashboard
+            user.role === 'admin' ? navigate('/admin') : 
+            user.role === 'reviewer' ? navigate('/reviewer') : navigate('/author');
+        } else {
+            navigate('/login');
+        }
+    };
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50 p-4 md:p-8">
             <Card className="w-full max-w-3xl shadow-xl border-slate-100/50">
@@ -69,7 +89,7 @@ const PublicSubmission = () => {
                         </div>
                         <CardTitle className="text-2xl md:text-3xl font-bold text-slate-900">Submit Research Paper</CardTitle>
                         <CardDescription className="text-base text-slate-600 max-w-lg">
-                            Submit your manuscript for peer review. Authors without an account will have one created automatically.
+                            {user ? `Submitting as ${user.name}` : 'Submit your manuscript for peer review. Authors without an account will have one created automatically.'}
                         </CardDescription>
                     </div>
                 </CardHeader>
@@ -86,8 +106,9 @@ const PublicSubmission = () => {
                                     value={name} 
                                     onChange={(e) => setName(e.target.value)} 
                                     required 
+                                    disabled={!!user}
                                     placeholder="e.g. Dr. Jane Smith" 
-                                    className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    className="bg-slate-50 border-slate-200 focus:bg-white transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -100,8 +121,9 @@ const PublicSubmission = () => {
                                     value={email} 
                                     onChange={(e) => setEmail(e.target.value)} 
                                     required 
+                                    disabled={!!user}
                                     placeholder="jane.smith@university.edu" 
-                                    className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                                    className="bg-slate-50 border-slate-200 focus:bg-white transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                                 />
                             </div>
                         </div>
@@ -179,13 +201,19 @@ const PublicSubmission = () => {
                 </CardContent>
                 <CardFooter className="justify-center border-t py-6 bg-slate-50/50">
                     <p className="text-sm text-slate-500">
-                        Already have an account? <Link to="/login" className="font-medium text-primary hover:underline">Login here</Link>
+                        {user ? (
+                            <Link to={user.role === 'admin' ? '/admin' : user.role === 'reviewer' ? '/reviewer' : '/author'} className="font-medium text-primary hover:underline">
+                                Return to Dashboard
+                            </Link>
+                        ) : (
+                            <>Already have an account? <Link to="/login" className="font-medium text-primary hover:underline">Login here</Link></>
+                        )}
                     </p>
                 </CardFooter>
             </Card>
 
             <Dialog open={showSuccessDialog} onOpenChange={(open) => {
-                if (!open) navigate('/login');
+                if (!open) handleSuccessClose();
                 setShowSuccessDialog(open);
             }}>
                 <DialogContent className="sm:max-w-md">
@@ -196,16 +224,24 @@ const PublicSubmission = () => {
                         <DialogTitle className="text-center text-xl text-green-700">Submission Successful!</DialogTitle>
                         <DialogDescription className="text-center pt-2 space-y-2">
                             <p>Your paper has been securely submitted for review.</p>
-                            <div className="bg-slate-50 p-3 rounded-md border border-slate-100 text-left mt-4 text-slate-700 text-sm">
-                                <p className="font-semibold mb-1">Account Created:</p>
-                                <p>Email: <span className="font-mono text-slate-900">{email}</span></p>
-                                <p className="text-xs text-slate-500 mt-2">A temporary password has been sent to your email. Please check your inbox and spam folder.</p>
-                            </div>
+                            
+                            {!user && (
+                                <div className="bg-slate-50 p-3 rounded-md border border-slate-100 text-left mt-4 text-slate-700 text-sm">
+                                    <p className="font-semibold mb-1">Account Created:</p>
+                                    <p>Email: <span className="font-mono text-slate-900">{email}</span></p>
+                                    <p className="text-xs text-slate-500 mt-2">A temporary password has been sent to your email. Please check your inbox and spam folder.</p>
+                                </div>
+                            )}
+                            {user && (
+                                <div className="bg-green-50 p-3 rounded-md border border-green-100 text-green-800 text-sm mt-4">
+                                    <p>The paper is now linked to your account. You can track its status in your dashboard.</p>
+                                </div>
+                            )}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="sm:justify-center">
-                        <Button className="w-full sm:w-auto" onClick={() => navigate('/login')}>
-                            Proceed to Login
+                        <Button className="w-full sm:w-auto" onClick={handleSuccessClose}>
+                            {user ? 'Go to Dashboard' : 'Proceed to Login'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

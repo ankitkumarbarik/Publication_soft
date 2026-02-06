@@ -42,8 +42,9 @@ exports.submitPaper = async (req, res) => {
     // 1. Upload to Cloudinary
     console.log('Uploading to Cloudinary...');
     const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'auto',
-        folder: 'research_papers'
+        resource_type: 'raw',
+        folder: 'research_papers',
+        use_filename: true
     });
     console.log('Cloudinary Upload Success:', result.secure_url);
 
