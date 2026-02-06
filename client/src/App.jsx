@@ -7,6 +7,7 @@ import AuthorDashboard from './pages/Dashboard/AuthorDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PublicSubmission from './pages/PublicSubmission';
+import LandingPage from './pages/LandingPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -26,6 +27,7 @@ function App() {
       <Router>
         <div className="min-h-screen bg-background font-sans antialiased text-foreground">
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
@@ -62,8 +64,8 @@ function App() {
 
             <Route path="/submit-paper" element={<PublicSubmission />} />
             
-            {/* Default Route */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Catch all - Redirect to Home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </Router>
