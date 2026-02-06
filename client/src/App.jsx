@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import PublicSubmission from './pages/PublicSubmission';
 import LandingPage from './pages/LandingPage';
+import PublishedPapers from './pages/PublishedPapers';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -28,6 +29,7 @@ function App() {
         <div className="min-h-screen bg-background font-sans antialiased text-foreground">
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/published-papers" element={<PublishedPapers />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/unauthorized" element={<Unauthorized />} />

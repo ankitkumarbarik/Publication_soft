@@ -1,186 +1,126 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance';
-import { useAuth } from '../../context/AuthContext';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
+import { Badge } from '../../components/ui/badge'; // Make sure Badge exists or use custom
+import { FileText, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 
 const AuthorDashboard = () => {
-    const { user, logout } = useAuth();
     const [papers, setPapers] = useState([]);
-    const [view, setView] = useState('list'); // 'list' or 'submit'
-    const [loading, setLoading] = useState(false);
-    
-    // Form State
-    const [title, setTitle] = useState('');
-    const [abstract, setAbstract] = useState('');
-    const [file, setFile] = useState(null);
-    const [message, setMessage] = useState('');
 
     useEffect(() => {
-        if (view === 'list') fetchPapers();
-    }, [view]);
+        const fetchPapers = async () => {
+            try {
+                const res = await axiosInstance.get('/api/papers/my-papers');
+                setPapers(res.data);
+            } catch (error) {
+                console.error("Error fetching papers", error);
+            }
+        };
 
-    const fetchPapers = async () => {
-        try {
-            // My papers endpoint? Requires filtering by author in backend or specific endpoint.
-            // Backend paper.controller `getAllPapers` returns ALL. 
-            // We need `getMyPapers` or specific route.
-            // Wait, I implemented `getAssignedPapers` for reviewer, but not `getMyPapers` for author.
-            // I should assume the Author endpoint might need created or filtered.
-            // Let's check backend `paper.routes.js`.
-            // Route `GET /api/papers/all` is admin only.
-            // I missed `GET /api/papers/my-papers` for author.
-            // I'll add that to backend later. For now, I'll implement the frontend and fix backend next.
-            // Or I can filter on frontend if I had access, but I don't.
-            // I'll call `/api/papers/my-papers` and implement it in backend in next step.
-            const res = await axiosInstance.get('/api/papers/my-papers');
-            setPapers(res.data);
-        } catch (error) {
-            console.error("Error fetching papers", error);
-        }
-    };
-
-    const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!file) {
-            setMessage('Please select a PDF file.');
-            return;
-        }
-        
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('abstract', abstract);
-        formData.append('file', file);
-        // Author details inferred from token
-        
-        setLoading(true);
-        setMessage('');
-
-        try {
-            await axiosInstance.post('/api/papers/submit', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            setMessage('Paper submitted successfully!');
-            setTitle('');
-            setAbstract('');
-            setFile(null);
-            setTimeout(() => setView('list'), 1500);
-        } catch (error) {
-            setMessage(error.response?.data?.message || 'Submission failed');
-        } finally {
-            setLoading(false);
-        }
-    };
+        fetchPapers();
+    }, []);
 
     const getStatusColor = (status) => {
         switch(status) {
             case 'PUBLISHED': return 'bg-green-100 text-green-800 border-green-200';
             case 'REJECTED': return 'bg-red-100 text-red-800 border-red-200';
-            case 'UNDER_REVIEW': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-            default: return 'bg-gray-100 text-gray-800 border-gray-200';
+            case 'UNDER_REVIEW': return 'bg-amber-100 text-amber-800 border-amber-200';
+            default: return 'bg-slate-100 text-slate-800 border-slate-200';
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
-            <header className="flex justify-between items-center mb-8 max-w-5xl mx-auto">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Author Dashboard</h1>
-                    <p className="text-gray-500">Welcome, {user?.name}</p>
+        <DashboardLayout role="author">
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">My Publications</h1>
+                        <p className="text-slate-500">Track the status of your research submissions.</p>
+                    </div>
+                    <Button asChild>
+                        <a href="/submit-paper">Submit New Paper</a>
+                    </Button>
                 </div>
-                <div className="flex gap-4">
-                    <Button variant={view === 'list' ? 'secondary' : 'ghost'} onClick={() => setView('list')}>My Papers</Button>
-                    <Button variant={view === 'submit' ? 'default' : 'outline'} onClick={() => setView('submit')}>Submit New Paper</Button>
-                    <Button variant="destructive" size="sm" onClick={logout}>Logout</Button>
-                </div>
-            </header>
 
-            <main className="max-w-5xl mx-auto">
-                {view === 'submit' ? (
-                    <Card className="max-w-2xl mx-auto">
-                        <CardHeader>
-                            <CardTitle>Submit Research Paper</CardTitle>
-                            <CardDescription>Upload your PDF for review.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="title">Paper Title</Label>
-                                    <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Enter paper title" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="abstract">Abstract</Label>
-                                    <textarea 
-                                        id="abstract" 
-                                        className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={abstract} 
-                                        onChange={(e) => setAbstract(e.target.value)} 
-                                        required 
-                                        placeholder="Brief summary of your research..."
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="file">PDF File</Label>
-                                    <Input id="file" type="file" accept="application/pdf" onChange={handleFileChange} required />
-                                </div>
-                                {message && <div className={`text-sm ${message.includes('success') ? 'text-green-600' : 'text-red-500'}`}>{message}</div>}
-                                <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? 'Submitting...' : 'Submit Paper'}
-                                </Button>
-                            </form>
+                {papers.length === 0 ? (
+                    <Card className="border-dashed border-2 shadow-none bg-slate-50/50">
+                        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                <FileText className="text-slate-400" size={32} />
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Papers Submitted</h3>
+                            <p className="text-slate-500 max-w-sm mb-6">
+                                You haven't submitted any research papers yet. Start your journey by submitting your first manuscript.
+                            </p>
+                            <Button asChild>
+                                <a href="/submit-paper">Submit Manuscript</a>
+                            </Button>
                         </CardContent>
                     </Card>
                 ) : (
                     <div className="grid gap-6">
-                        {papers.length === 0 ? (
-                            <div className="text-center py-10 bg-white rounded-lg border shadow-sm">
-                                <p className="text-gray-500 mb-4">You haven't submitted any papers yet.</p>
-                                <Button onClick={() => setView('submit')}>Submit Your First Paper</Button>
-                            </div>
-                        ) : (
-                            papers.map(paper => (
-                                <Card key={paper._id}>
-                                    <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                                        <div className="space-y-1">
-                                            <CardTitle>{paper.title}</CardTitle>
-                                            <CardDescription>Submitted on {new Date(paper.submittedAt).toLocaleDateString()}</CardDescription>
+                        {papers.map((paper) => (
+                            <Card key={paper._id} className="overflow-hidden hover:shadow-md transition-shadow">
+                                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-lg font-semibold leading-tight text-slate-900">
+                                            {paper.title}
+                                        </CardTitle>
+                                        <CardDescription className="flex items-center gap-2">
+                                            <Calendar size={14} />
+                                            Submitted on {new Date(paper.submittedAt).toLocaleDateString()}
+                                        </CardDescription>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(paper.status)}`}>
+                                        {paper.status.replace('_', ' ')}
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">
+                                        {paper.abstract}
+                                    </p>
+                                    
+                                    {paper.status === 'PUBLISHED' && (
+                                        <div className="mt-4 flex items-center gap-2 text-sm text-green-700 bg-green-50 p-3 rounded-md border border-green-100">
+                                            <CheckCircle size={16} />
+                                            <span className="font-medium">Paper Published!</span>
                                         </div>
-                                        <div className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(paper.status)}`}>
-                                            {paper.status.replace('_', ' ')}
+                                    )}
+                                    
+                                    {paper.status === 'REJECTED' && (
+                                        <div className="mt-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 p-3 rounded-md border border-red-100">
+                                            <AlertCircle size={16} />
+                                            <span className="font-medium">Submission Rejected</span>
                                         </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{paper.abstract}</p>
-                                        {paper.status === 'PUBLISHED' && (
-                                            <div className="mt-4 p-4 bg-green-50 rounded-md border border-green-100">
-                                                <p className="text-green-800 font-medium">Congratulations! Your paper has been published.</p>
-                                            </div>
-                                        )}
-                                        {paper.reviewRemark && (
-                                            <div className="mt-4">
-                                                <p className="text-sm font-semibold">Reviewer Remark:</p>
-                                                <p className="text-sm text-gray-600 italic">"{paper.reviewRemark}"</p>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                    <CardFooter>
-                                         <Button variant="outline" size="sm" asChild>
-                                             <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer">View PDF</a>
-                                         </Button>
-                                    </CardFooter>
-                                </Card>
-                            ))
-                        )}
+                                    )}
+
+                                    {paper.reviewRemark && (
+                                        <div className="mt-4 p-3 bg-slate-50 rounded-md border border-slate-100 text-sm">
+                                            <span className="font-semibold text-slate-700 block mb-1">Reviewer Remarks:</span>
+                                            <span className="text-slate-600 italic">"{paper.reviewRemark}"</span>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex gap-3">
+                                    <Button variant="outline" size="sm" asChild className="h-8 text-xs">
+                                        <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer">
+                                            View PDF
+                                        </a>
+                                    </Button>
+                                    {paper.status === 'PUBLISHED' && (
+                                        <Button size="sm" asChild className="h-8 text-xs bg-primary text-white">
+                                            <a href={paper.cloudinaryUrl} download>Download Certificate</a>
+                                        </Button>
+                                    )}
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
                 )}
-            </main>
-        </div>
+            </div>
+        </DashboardLayout>
     );
 };
 

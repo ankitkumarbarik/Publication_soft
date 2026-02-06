@@ -31,7 +31,7 @@ const paperSchema = new mongoose.Schema({
     },
     recommendation: {
       type: String,
-      enum: ['APPROVE', 'REJECT', ''],
+      enum: ['ACCEPTED', 'REJECTED', 'CHANGES_REQUIRED', 'APPROVE', 'REJECT', ''],
       default: ''
     },
     assignedAt: {

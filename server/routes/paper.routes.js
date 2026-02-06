@@ -31,6 +31,7 @@ const optionalAuth = (req, res, next) => {
 };
 
 // Public/Author routes
+router.get('/published', paperController.getPublishedPapers);
 router.post('/submit', optionalAuth, upload.single('file'), paperController.submitPaper);
 router.get('/my-papers', verifyToken, verifyRole(['author']), paperController.getMyPapers);
 

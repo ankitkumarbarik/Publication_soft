@@ -179,12 +179,22 @@ exports.assignReviewer = async (req, res) => {
 exports.submitReview = async (req, res) => {
     try {
         const { paperId, remark, recommendation } = req.body;
-        const paper = await Paper.findOne({ _id: paperId, 'reviewers.reviewerId': req.user.id });
+        const paper = await Paper.findById(paperId);
         
-        if (!paper) return res.status(404).json({ message: 'Paper not found or not assigned to you' });
+        if (!paper) return res.status(404).json({ message: 'Paper not found' });
+        
+        if (paper.status === 'PUBLISHED' || paper.status === 'REJECTED') {
+            return res.status(400).json({ message: 'Cannot review a finalized paper' });
+        }
 
-        // Find specific reviewer entry
-        const reviewEntry = paper.reviewers.find(r => r.reviewerId.toString() === req.user.id);
+        // Find specific reviewer entry using robust comparison
+        const reviewEntry = paper.reviewers.find(r => 
+            (r.reviewerId._id && r.reviewerId._id.toString() === req.user.id) || 
+            (r.reviewerId.toString() === req.user.id)
+        );
+
+        if (!reviewEntry) return res.status(403).json({ message: 'Not assigned to this paper' });
+
         if (reviewEntry) {
             reviewEntry.remark = remark;
             reviewEntry.recommendation = recommendation;
@@ -252,6 +262,16 @@ exports.removeReviewer = async (req, res) => {
 
         await paper.save();
         res.json({ message: 'Reviewer removed' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+exports.getPublishedPapers = async (req, res) => {
+    try {
+        const papers = await Paper.find({ status: 'PUBLISHED' })
+            .populate('authorId', 'name') // Only need name
+            .select('title abstract cloudinaryUrl publishedAt authorId'); // Select relevant fields
+        res.json(papers);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -15,7 +15,7 @@ const LandingPage = () => {
                         <div className="bg-primary text-white p-1 rounded-sm">
                             <BookOpen size={24} />
                         </div>
-                        <span className="text-xl font-bold text-slate-900 tracking-tight">IJARMY</span>
+                        <span className="text-xl font-bold text-slate-900 tracking-tight">ResearchDesk</span>
                     </div>
 
                     {/* Desktop Nav */}
@@ -53,8 +53,8 @@ const LandingPage = () => {
                                 International Journal For Advanced Research And Multidisciplinary (IJARMY) — A Peer-Reviewed platform for Engineers, Scientists, and Innovators.
                             </p>
                             <div className="flex flex-wrap gap-4 pt-4">
-                                <Button size="lg" className="bg-primary text-white hover:bg-slate-800 h-12 px-8">
-                                    View Current Issue
+                                <Button asChild size="lg" className="bg-primary text-white hover:bg-slate-800 h-12 px-8">
+                                    <Link to="/published-papers">View Published Papers</Link>
                                 </Button>
                                 <Button variant="outline" size="lg" className="h-12 px-8 border-slate-300 text-slate-700 hover:bg-white">
                                     Author Guidelines

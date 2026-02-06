@@ -1,27 +1,42 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
-import { Button } from '../../components/ui/button';
+import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { Label } from '../../components/ui/label';
+import { Button } from '../../components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../../components/ui/dialog";
+import { Label } from "../../components/ui/label";
+import { Input } from "../../components/ui/input";
+import { Badge } from "../../components/ui/badge"; // Ensure Badge exists
+import { Textarea } from "../../components/ui/textarea"; // Ensure Textarea exists
+import { FileText, CheckCircle, Clock } from 'lucide-react';
 
 const ReviewerDashboard = () => {
-    const { user, logout } = useAuth();
+    const location = useLocation();
     const [papers, setPapers] = useState([]);
     
-    // Review State (mapped by paperId ideally, but simple form here)
-    const [activePaper, setActivePaper] = useState(null);
+    // Review Dialog State
+    const [selectedPaper, setSelectedPaper] = useState(null);
     const [remark, setRemark] = useState('');
-    const [recommendation, setRecommendation] = useState('APPROVE'); // APPROVE | REJECT
+    const [recommendation, setRecommendation] = useState('ACCEPTED');
+    const [dialogOpen, setDialogOpen] = useState(false);
     const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+
+    // Determine view based on URL
+    // /reviewer/assigned -> Show pending
+    // /reviewer/completed -> Show reviewed
+    // /reviewer -> Show all or pending
+    const showCompleted = location.pathname.includes('completed');
 
     const fetchAssignedPapers = useCallback(async () => {
         try {
             const res = await axiosInstance.get('/api/papers/assigned');
+            // Backend returns all assigned. We filter on frontend for now.
+            // Ideally backend should filter.
             setPapers(res.data);
         } catch (error) {
-            console.error(error);
+            console.error("Error fetching papers", error);
         }
     }, []);
 
@@ -29,127 +44,187 @@ const ReviewerDashboard = () => {
         fetchAssignedPapers();
     }, [fetchAssignedPapers]);
 
-    const submitReview = async (paperId) => {
+    const submitReview = async () => {
+        if (!selectedPaper) return;
+
         try {
             await axiosInstance.post('/api/papers/review', {
-                paperId,
+                paperId: selectedPaper._id,
                 remark,
                 recommendation
             });
-            // alert('Review submitted successfully');
+            setDialogOpen(false);
             setSuccessDialogOpen(true);
-            setActivePaper(null);
-            fetchAssignedPapers();
+            fetchAssignedPapers(); // Refresh list
         } catch (error) {
-            alert(error.response?.data?.message || 'Submission failed');
+            console.error("Review failed", error);
+            alert("Failed to submit review");
         }
     };
 
+    const openReviewDialog = (paper) => {
+        setSelectedPaper(paper);
+        // Pre-fill if editing
+        const myReview = paper.reviewers?.find(r => {
+             const rId = r.reviewerId?._id || r.reviewerId;
+             const uId = currentUser?._id || currentUser?.id;
+             return String(rId) === String(uId);
+        });
+
+        if (myReview && myReview.status === 'REVIEWED') {
+            setRemark(myReview.remark || '');
+            setRecommendation(myReview.recommendation || 'ACCEPTED');
+        } else {
+            setRemark('');
+            setRecommendation('ACCEPTED');
+        }
+        setDialogOpen(true);
+    };
+
+    // Filter papers based on view
+    // Paper struct: { ..., reviewers: [ { reviewerId: me, status: 'ASSIGNED'/'REVIEWED' } ] }
+    const { user: currentUser } = useAuth();
+    
+    // Filter logic:
+    // PENDING: My status is 'ASSIGNED'
+    // COMPLETED: My status is 'REVIEWED'
+
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
-             <header className="flex justify-between items-center mb-8 max-w-4xl mx-auto">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Reviewer Dashboard</h1>
-                    <p className="text-gray-500">Welcome, {user?.name}</p>
+        <DashboardLayout role="reviewer">
+            <div className="space-y-6">
+                 <div>
+                    <h1 className="text-2xl font-bold text-slate-900">
+                        {showCompleted ? 'Completed Reviews' : 'Assigned Papers'}
+                    </h1>
+                    <p className="text-slate-500">
+                        {showCompleted 
+                            ? 'History of your contributed reviews.' 
+                            : 'Papers waiting for your expert review.'}
+                    </p>
                 </div>
-                <Button variant="destructive" size="sm" onClick={logout}>Logout</Button>
-            </header>
 
-            <main className="max-w-4xl mx-auto space-y-6">
-                <h2 className="text-xl font-semibold">Assigned Papers</h2>
-                {papers.length === 0 && <p className="text-gray-500">No papers assigned yet.</p>}
-                
-                {papers.map(paper => {
-                    // Find the review entry for the current logged-in user
-                    const myReview = paper.reviewers?.find(r => 
-                         (r.reviewerId?._id === user?._id) || (r.reviewerId === user?._id)
-                    );
-
-                    return (
-                        <Card key={paper._id}>
-                            <CardHeader>
-                                <CardTitle>{paper.title}</CardTitle>
-                                <CardDescription>
-                                    Paper Status: {paper.status} | My Status: <span className={myReview?.status === 'REVIEWED' ? 'text-green-600 font-bold' : 'text-orange-600'}>{myReview?.status || 'ASSIGNED'}</span>
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-gray-600 mb-4">{paper.abstract}</p>
-                                <div className="flex gap-4 mb-4">
+                <div className="grid gap-6">
+                    {papers.filter(p => {
+                        // Find my reviewer entry safely
+                        const myReview = p.reviewers?.find(r => {
+                            const rId = r.reviewerId?._id || r.reviewerId;
+                            const uId = currentUser?._id || currentUser?.id;
+                            return String(rId) === String(uId);
+                        });
+                        
+                        if (!myReview) return false; 
+                        if (showCompleted) return myReview.status === 'REVIEWED';
+                        return myReview.status === 'ASSIGNED';
+                    }).length === 0 ? (
+                        <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                             <p className="text-slate-500">No papers found in this category.</p>
+                        </div>
+                    ) : (
+                        papers.filter(p => {
+                            const myReview = p.reviewers?.find(r => {
+                                const rId = r.reviewerId?._id || r.reviewerId;
+                                const uId = currentUser?._id || currentUser?.id;
+                                return String(rId) === String(uId);
+                            });
+                            if (showCompleted) return myReview && myReview.status === 'REVIEWED';
+                            return myReview && myReview.status === 'ASSIGNED';
+                        }).map(paper => (
+                            <Card key={paper._id}>
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div className="space-y-1">
+                                            <CardTitle>{paper.title}</CardTitle>
+                                            <CardDescription>Author: {paper.authorId?.name || 'Hidden'}</CardDescription>
+                                        </div>
+                                        <div className={`px-2 py-1 rounded text-xs font-bold ${
+                                            paper.status === 'UNDER_REVIEW' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100'
+                                        }`}>
+                                            {paper.status.replace('_', ' ')}
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-slate-600 mb-4">{paper.abstract}</p>
+                                    <div className="flex gap-4 text-xs text-slate-500">
+                                        <span className="flex items-center gap-1"><Clock size={12}/> Submitted: {new Date(paper.submittedAt).toLocaleDateString()}</span>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="bg-slate-50/50 flex justify-end gap-3">
                                     <Button variant="outline" size="sm" asChild>
-                                        <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer">Download PDF</a>
+                                        <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer"><FileText size={14} className="mr-2"/> View PDF</a>
                                     </Button>
                                     
-                                    {/* Show button if I haven't reviewed yet OR if I want to update? Limit to pending for now to match logic */}
-                                    {paper.status === 'UNDER_REVIEW' && (
-                                        <Button size="sm" onClick={() => {
-                                            setActivePaper(paper._id);
-                                            setRemark(myReview?.remark || '');
-                                            setRecommendation(myReview?.recommendation || 'APPROVE');
-                                        }}>
-                                            {myReview?.status === 'REVIEWED' ? 'Edit Review' : 'Write Review'}
-                                        </Button>
-                                    )}
-                                </div>
+                                    <Button size="sm" 
+                                        onClick={() => openReviewDialog(paper)}
+                                        disabled={paper.status === 'PUBLISHED' || paper.status === 'REJECTED'}
+                                        className={paper.status === 'PUBLISHED' || paper.status === 'REJECTED' ? 'opacity-50 cursor-not-allowed' : ''}
+                                    >
+                                        {showCompleted ? 'Edit Review' : 'Submit Review'}
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))
+                    )}
+                </div>
 
-                                {(activePaper === paper._id) && (
-                                    <div className="bg-slate-100 p-4 rounded-md space-y-4 border">
-                                        <h3 className="font-semibold text-sm">Submit Review</h3>
-                                        <div>
-                                            <Label htmlFor="rec">Recommendation</Label>
-                                            <select 
-                                                id="rec"
-                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                                value={recommendation}
-                                                onChange={(e) => setRecommendation(e.target.value)}
-                                            >
-                                                <option value="APPROVE">Approve</option>
-                                                <option value="REJECT">Reject</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="remark">Remarks</Label>
-                                            <textarea 
-                                                id="remark"
-                                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                                value={remark}
-                                                onChange={(e) => setRemark(e.target.value)}
-                                                placeholder="Your detailed comments..."
-                                            />
-                                        </div>
-                                        <div className="flex gap-2 justify-end">
-                                            <Button variant="ghost" size="sm" onClick={() => setActivePaper(null)}>Cancel</Button>
-                                            <Button size="sm" onClick={() => submitReview(paper._id)}>Submit Review</Button>
-                                        </div>
-                                    </div>
-                                )}
+                {/* Submit Review Dialog */}
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Submit Review</DialogTitle>
+                            <CardDescription>Evaluate "{selectedPaper?.title}"</CardDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Remark / Feedback</Label>
+                                {/* Textarea component needed, using primitive if not available */}
+                                <textarea 
+                                    className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="Enter your detailed feedback for the author..."
+                                    value={remark}
+                                    onChange={(e) => setRemark(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Recommendation</Label>
+                                <select 
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={recommendation}
+                                    onChange={(e) => setRecommendation(e.target.value)}
+                                >
+                                    <option value="ACCEPTED">Accept</option>
+                                    <option value="REJECTED">Reject</option>
+                                    <option value="CHANGES_REQUIRED">Changes Required</option>
+                                </select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                            <Button onClick={submitReview}>Submit Review</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-                                {myReview?.status === 'REVIEWED' && activePaper !== paper._id && (
-                                    <div className="mt-4 text-sm bg-green-50 p-3 rounded border border-green-200">
-                                        <p><strong>Your Recommendation:</strong> {myReview.recommendation}</p>
-                                        <p><strong>Your Remarks:</strong> {myReview.remark}</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-            </main>
-
-            <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Review Submitted</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4 text-slate-700">
-                        Your review has been submitted successfully. Thank you for your contribution!
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setSuccessDialogOpen(false)}>Close</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                 {/* Success Dialog */}
+                 <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Review Submitted</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4 text-slate-700 flex items-center gap-3">
+                             <CheckCircle className="text-green-500" size={24} />
+                             <div>
+                                 <p className="font-medium">Thank you for your contribution!</p>
+                                 <p className="text-sm text-slate-500">Your review has been recorded successfully.</p>
+                             </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={() => setSuccessDialogOpen(false)}>Close</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </DashboardLayout>
     );
 };
 
