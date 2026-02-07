@@ -42,9 +42,10 @@ exports.submitPaper = async (req, res) => {
     // 1. Upload to Cloudinary
     console.log('Uploading to Cloudinary...');
     const result = await cloudinary.uploader.upload(req.file.path, {
-        resource_type: 'raw',
+        resource_type: 'raw',        // Use 'raw' instead of 'auto' for PDFs
         folder: 'research_papers',
-        use_filename: true
+        use_filename: true,
+        access_mode: 'public'        // Ensure public access
     });
     console.log('Cloudinary Upload Success:', result.secure_url);
 
@@ -277,3 +278,52 @@ exports.getPublishedPapers = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// Stream PDF through server to bypass Cloudinary authentication
+exports.getPdfUrl = async (req, res) => {
+    try {
+        const { paperId } = req.params;
+        const paper = await Paper.findById(paperId);
+        
+        if (!paper) {
+            return res.status(404).json({ message: 'Paper not found' });
+        }
+
+        // Generate a signed URL using cloudinary.url with proper signature
+        const publicId = paper.cloudinaryPublicId;
+        
+        // Generate signed URL with all necessary parameters
+        const signedUrl = cloudinary.url(publicId + '.pdf', {
+            resource_type: 'image',
+            type: 'upload',
+            sign_url: true,
+            secure: true
+        });
+        
+        res.json({ url: signedUrl });
+    } catch (error) {
+        console.error('Error generating PDF URL:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Server-side PDF redirect - redirects to stored Cloudinary URL
+exports.streamPdf = async (req, res) => {
+    try {
+        const { paperId } = req.params;
+        const paper = await Paper.findById(paperId);
+        
+        if (!paper) {
+            return res.status(404).send('Paper not found');
+        }
+
+        // Simply redirect to the stored cloudinaryUrl
+        // New uploads use resource_type: 'raw' which works with direct URLs
+        res.redirect(paper.cloudinaryUrl);
+        
+    } catch (error) {
+        console.error('Error redirecting to PDF:', error);
+        res.status(500).send('Failed to load PDF: ' + error.message);
+    }
+};
+

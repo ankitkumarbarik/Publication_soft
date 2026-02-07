@@ -31,6 +31,12 @@ const AuthorDashboard = () => {
         }
     };
 
+    // Handle PDF viewing - opens server stream endpoint that bypasses Cloudinary auth
+    const handleViewPdf = (paperId) => {
+        // Open the streaming endpoint directly - server handles auth
+        window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/stream/${paperId}`, '_blank');
+    };
+
     return (
         <DashboardLayout role="author">
             <div className="space-y-6">
@@ -104,14 +110,12 @@ const AuthorDashboard = () => {
                                     )}
                                 </CardContent>
                                 <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex gap-3">
-                                    <Button variant="outline" size="sm" asChild className="h-8 text-xs">
-                                        <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer">
-                                            View PDF
-                                        </a>
+                                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleViewPdf(paper._id)}>
+                                        View PDF
                                     </Button>
                                     {paper.status === 'PUBLISHED' && (
-                                        <Button size="sm" asChild className="h-8 text-xs bg-primary text-white">
-                                            <a href={paper.cloudinaryUrl} download>Download Certificate</a>
+                                        <Button size="sm" className="h-8 text-xs bg-primary text-white" onClick={() => handleViewPdf(paper._id)}>
+                                            Download PDF
                                         </Button>
                                     )}
                                 </CardFooter>

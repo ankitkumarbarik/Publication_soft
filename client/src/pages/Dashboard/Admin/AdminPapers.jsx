@@ -106,6 +106,11 @@ const AdminPapers = () => {
         return <span className={`px-2 py-1 rounded text-xs font-bold ${styles[status] || 'bg-gray-100'}`}>{status}</span>;
     };
 
+    // Handle PDF viewing - opens server stream endpoint that bypasses Cloudinary auth
+    const handleViewPdf = (paperId) => {
+        window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/stream/${paperId}`, '_blank');
+    };
+
     return (
         <div className="space-y-6">
             <div>
@@ -128,10 +133,8 @@ const AdminPapers = () => {
                                         Submitted: {new Date(paper.submittedAt).toLocaleDateString()}
                                     </CardDescription>
                                 </div>
-                                <Button variant="outline" size="sm" asChild>
-                                    <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer">
-                                        <FileText size={14} className="mr-2" /> PDF
-                                    </a>
+                                <Button variant="outline" size="sm" onClick={() => handleViewPdf(paper._id)}>
+                                    <FileText size={14} className="mr-2" /> PDF
                                 </Button>
                             </div>
                         </CardHeader>

@@ -25,6 +25,11 @@ const PublishedPapers = () => {
         fetchPapers();
     }, []);
 
+    // Handle PDF viewing - opens server stream endpoint that bypasses Cloudinary auth
+    const handleViewPdf = (paperId) => {
+        window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/stream/${paperId}`, '_blank');
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -74,15 +79,11 @@ const PublishedPapers = () => {
                                     </p>
                                 </CardContent>
                                 <CardFooter className="pt-4 border-t border-slate-100 flex justify-between">
-                                    <Button variant="outline" size="sm" asChild>
-                                        <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer">
-                                            <FileText size={16} className="mr-2" /> View PDF
-                                        </a>
+                                    <Button variant="outline" size="sm" onClick={() => handleViewPdf(paper._id)}>
+                                        <FileText size={16} className="mr-2" /> View PDF
                                     </Button>
-                                    <Button size="sm" asChild className="bg-primary text-white hover:bg-slate-800">
-                                        <a href={paper.cloudinaryUrl} download target="_blank" rel="noopener noreferrer">
-                                            <Download size={16} className="mr-2" /> Download
-                                        </a>
+                                    <Button size="sm" className="bg-primary text-white hover:bg-slate-800" onClick={() => handleViewPdf(paper._id)}>
+                                        <Download size={16} className="mr-2" /> Download
                                     </Button>
                                 </CardFooter>
                             </Card>

@@ -32,6 +32,8 @@ const optionalAuth = (req, res, next) => {
 
 // Public/Author routes
 router.get('/published', paperController.getPublishedPapers);
+router.get('/pdf/:paperId', paperController.getPdfUrl);  // Get signed PDF URL
+router.get('/stream/:paperId', paperController.streamPdf);  // Stream PDF through server
 router.post('/submit', optionalAuth, upload.single('file'), paperController.submitPaper);
 router.get('/my-papers', verifyToken, verifyRole(['author']), paperController.getMyPapers);
 

@@ -44,6 +44,11 @@ const ReviewerDashboard = () => {
         fetchAssignedPapers();
     }, [fetchAssignedPapers]);
 
+    // Handle PDF viewing - opens server stream endpoint that bypasses Cloudinary auth
+    const handleViewPdf = (paperId) => {
+        window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/papers/stream/${paperId}`, '_blank');
+    };
+
     const submitReview = async () => {
         if (!selectedPaper) return;
 
@@ -150,8 +155,8 @@ const ReviewerDashboard = () => {
                                     </div>
                                 </CardContent>
                                 <CardFooter className="bg-slate-50/50 flex justify-end gap-3">
-                                    <Button variant="outline" size="sm" asChild>
-                                        <a href={paper.cloudinaryUrl} target="_blank" rel="noopener noreferrer"><FileText size={14} className="mr-2"/> View PDF</a>
+                                    <Button variant="outline" size="sm" onClick={() => handleViewPdf(paper._id)}>
+                                        <FileText size={14} className="mr-2"/> View PDF
                                     </Button>
                                     
                                     <Button size="sm" 
