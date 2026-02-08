@@ -66,7 +66,7 @@ const DashboardLayout = ({ children, role }) => {
             >
                 <div className="h-16 flex items-center px-6 border-b border-slate-800">
                     <BookOpen className="text-primary mr-2" size={24} />
-                    <span className="text-xl font-bold text-white tracking-tight">ResearchDesk</span>
+                    <span className="text-xl font-bold text-white tracking-tight">ShodhSetu</span>
                 </div>
 
                 <div className="p-4 space-y-1">

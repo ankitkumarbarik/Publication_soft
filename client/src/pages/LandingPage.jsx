@@ -15,7 +15,7 @@ const LandingPage = () => {
                         <div className="bg-primary text-white p-1 rounded-sm">
                             <BookOpen size={24} />
                         </div>
-                        <span className="text-xl font-bold text-slate-900 tracking-tight">ResearchDesk</span>
+                        <span className="text-xl font-bold text-slate-900 tracking-tight">ShodhSetu</span>
                     </div>
 
                     {/* Desktop Nav */}
@@ -50,7 +50,7 @@ const LandingPage = () => {
                                 Advancing Global Knowledge Across Disciplines
                             </h1>
                             <p className="text-lg text-slate-600 leading-relaxed max-w-lg">
-                                International Journal For Advanced Research And Multidisciplinary (IJARMY) — A Peer-Reviewed platform for Engineers, Scientists, and Innovators.
+                                ShodhSetu — A Peer-Reviewed platform for Engineers, Scientists, and Innovators.
                             </p>
                             <div className="flex flex-wrap gap-4 pt-4">
                                 <Button asChild size="lg" className="bg-primary text-white hover:bg-slate-800 h-12 px-8">
@@ -113,7 +113,7 @@ const LandingPage = () => {
                          <div className="md:col-span-8 space-y-6">
                              <h2 className="text-3xl font-bold text-slate-900">Aim & Scope</h2>
                              <p className="text-slate-600 leading-relaxed text-lg">
-                                 IJARMY provides a global platform for researchers, innovators, and scholars to share their research worldwide. We promote advancement in all disciplines, offering high-quality original Research Articles, Review Articles, Case Studies, and Technical Notes.
+                                 ShodhSetu provides a global platform for researchers, innovators, and scholars to share their research worldwide. We promote advancement in all disciplines, offering high-quality original Research Articles, Review Articles, Case Studies, and Technical Notes.
                              </p>
                              <p className="text-slate-600 leading-relaxed">
                                  Our mission is to support scholars in disseminating their work effectively, fostering the development of analytical skills and contributing valuable knowledge to society.
@@ -214,7 +214,7 @@ const LandingPage = () => {
                                     <FileText size={32} />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-900">1. Prepare</h3>
-                                <p className="text-sm text-slate-600">Download the IJARMY Paper Template and Review Copyright Form.</p>
+                                <p className="text-sm text-slate-600">Download the ShodhSetu Paper Template and Review Copyright Form.</p>
                                 <Button variant="outline" size="sm" className="mt-2 text-xs">Download Template</Button>
                             </div>
 
@@ -246,10 +246,10 @@ const LandingPage = () => {
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-white">
                              <BookOpen size={20} />
-                             <span className="text-lg font-bold tracking-tight">IJARMY</span>
+                             <span className="text-lg font-bold tracking-tight">ShodhSetu</span>
                         </div>
                         <p className="text-slate-400 leading-relaxed">
-                            International Journal For Advanced Research And Multidisciplinary. Advancing knowledge since 2016.
+                            ShodhSetu: Advancing knowledge since 2016.
                         </p>
                     </div>
 
@@ -277,14 +277,14 @@ const LandingPage = () => {
                         <h4 className="text-white font-bold mb-6">Contact</h4>
                         <div className="space-y-3">
                             <p className="flex items-center gap-2">
-                                <Mail size={16} /> editor@ijarmy.com
+                                <Mail size={16} /> editor@shodhsetu.com
                             </p>
                             <p>India</p>
                         </div>
                     </div>
                 </div>
                 <div className="container mx-auto px-4 mt-16 pt-8 border-t border-slate-800 text-center text-xs text-slate-500">
-                    <p>&copy; {new Date().getFullYear()} IJARMY. All Rights Reserved. | Designed for Academic Excellence.</p>
+                    <p>&copy; {new Date().getFullYear()} ShodhSetu. All Rights Reserved. | Designed for Academic Excellence.</p>
                 </div>
             </footer>
         </div>
